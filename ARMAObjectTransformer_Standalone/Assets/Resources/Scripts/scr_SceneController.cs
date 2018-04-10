@@ -19,19 +19,23 @@ public class scr_SceneController : MonoBehaviour {
 	}; 
 	// This list is characters we do not allow for passwords
 	private readonly string[] INVALID_PASS = new string[] {
-		"`", "~", ".", "|", "\\"                               
+		"`", "~", "|", "\\", "\"", "'"                            
 	}; 
 		
-	private readonly string BASE_URL = "mergingspaces.net/";
-	private readonly string WEB_SERVER_USER = "mergingspaces@rachelclarke.net";
-	private readonly string WEB_SERVER_PASS = "Merging1";
+	private readonly string BASE_URL = ""; /* FILL THIS IN */
+	private readonly string WEB_SERVER_USER = ""; /* FILL THIS IN */
+	private readonly string WEB_SERVER_PASS = ""; /* FILL THIS IN */
 
+	[SerializeField]
+	private GameObject IT_target;
 	[SerializeField]
 	private GameObject GO_model;
 	[SerializeField]
 	private GameObject GO_marker;
 	[SerializeField]
 	private GameObject GO_camera;
+	[SerializeField]
+	private GameObject AR_camera;
 
 	private string fp_object;  // Remembers the last location the user navigated to for their object file
 	private string fp_texture; // Remembers the last location the user navigated to for their texture file
@@ -40,12 +44,12 @@ public class scr_SceneController : MonoBehaviour {
 	private ProgState currState;
 	private ProgState prevState;
 	private enum ProgState {
-		LOGIN, GALLERY, PIECE, EDIT, DELETE
+		LOGIN, GALLERY, PIECE, EDIT, PREVIEW, DELETE
 	}
 
 	private MouseState mouseState;
 	private enum MouseState {
-		EDITING, TRANSLATE, ROTATE
+		EDITING, TRANSLATE, ROTATE, LOCKED
 	}
 
 	private bool   lock_changingStates;
@@ -141,6 +145,8 @@ public class scr_SceneController : MonoBehaviour {
 	}
 		
 	void Start() {
+		GO_camera.SetActive (true);
+		AR_camera.SetActive (false);
 		LoadFilePaths ();
 	}
 
@@ -454,11 +460,25 @@ public class scr_SceneController : MonoBehaviour {
 					}
 					// Save changes
 					if (GUI.Button (new Rect ((Screen.width / 2) - 65, 10, 120, 32), "Save Changes")) {
+						// Save changes to Web Server
 						StartCoroutine (SaveEdits ());
+						// Upload image marker to Vuforia Cloud
+						DebugMessage("Uploading image target to Vuforia cloud...");
+						Texture2D imageTarget = (Texture2D) GO_marker.GetComponent<MeshRenderer> ().material.mainTexture;
+						string markerName = this.GetCurrentTargetName() + "_marker";
+						this.GetComponent<CloudUploading>().CallPostTarget (imageTarget, markerName, markerName);
 					}
-					//TODO Preview
+					// Preview
 					if (GUI.Button (new Rect (Screen.width - 130, 85, 120, 32), "Preview")) {
-						//TODO Create a temproary arma object for viewing
+						mouseState = MouseState.LOCKED;
+						currState = ProgState.PREVIEW;
+						GO_marker.GetComponent<MeshRenderer> ().enabled = false;
+						GO_model.GetComponent<MeshRenderer> ().enabled = false;
+						GO_camera.SetActive (false);
+						GO_camera.GetComponent<Camera> ().enabled = false;
+						AR_camera.SetActive (true);
+						AR_camera.GetComponent<Camera> ().enabled = true;
+						return;
 					}
 				}
 				// Camera controls
@@ -479,6 +499,27 @@ public class scr_SceneController : MonoBehaviour {
 				if (GUI.Button (new Rect (180, 354, 75, 24), "Rotate")) {
 					mouseState = MouseState.ROTATE;
 				}
+				if (GUI.Button (new Rect (10, 378, 200, 24), "Reset Camera")) {
+					GO_camera.GetComponent<scr_CameraControl> ().ResetCamera ();
+				}
+			}
+			break;
+
+		
+		// Preview
+		case ProgState.PREVIEW:
+			// Preview
+			if (GUI.Button (new Rect (10, 10, 80, 32), "Finished")) {
+				mouseState = MouseState.EDITING;
+				currState = ProgState.EDIT;
+				GO_marker.GetComponent<MeshRenderer> ().enabled = true;
+				GO_model.GetComponent<MeshRenderer> ().enabled = true;
+				IT_target.transform.localScale = new Vector3 (1f, 1f, 1f);
+				GO_camera.SetActive (true);
+				GO_camera.GetComponent<Camera> ().enabled = true;
+				AR_camera.SetActive (false);
+				AR_camera.GetComponent<Camera> ().enabled = false;
+				return;
 			}
 			break;
 
@@ -1119,5 +1160,9 @@ public class scr_SceneController : MonoBehaviour {
 		catch (Exception e) {
 			DebugMessage ("Error: Could not create CWBARMA.dat", "error");
 		}
+	}
+
+	public String GetCurrentTargetName() {
+		return "_" + uName + "_" + currentGallery + "_" + currentPiece;
 	}
 }

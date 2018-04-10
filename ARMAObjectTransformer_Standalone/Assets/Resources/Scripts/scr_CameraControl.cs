@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class scr_CameraControl : MonoBehaviour {
 
-	private readonly Vector3 DEF_POS = new Vector3 ( 00.00f,  02.25f, -04.00f);
+	private readonly Vector3 DEF_POS = new Vector3 ( 00.00f,  02.70f, -03.00f);
 	private readonly Vector3 DEF_ROT = new Vector3 ( 20.00f,  00.00f,  00.00f);
 
 	private readonly float SPD_TRA = 10.0f;

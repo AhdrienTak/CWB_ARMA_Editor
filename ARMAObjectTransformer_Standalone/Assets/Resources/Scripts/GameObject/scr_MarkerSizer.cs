@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class scr_MarkerSizer : MonoBehaviour {
 
+	private readonly float MULTIPLIER = 0.1f;
 	private int mark_w;
 	private int mark_h;
 
@@ -33,6 +34,6 @@ public class scr_MarkerSizer : MonoBehaviour {
 			scaleZ = ((float)mark_h) / ((float)mark_w);
 		}
 
-		this.transform.localScale = new Vector3(scaleX, 1.0f, scaleZ);
+		this.transform.localScale = new Vector3(scaleX * MULTIPLIER, 1.0f, scaleZ * MULTIPLIER);
 	}
 }

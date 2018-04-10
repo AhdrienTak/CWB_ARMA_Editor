@@ -158,10 +158,10 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.Company.ProductName
-    Standalone: unity.DefaultCompany.ObjTest
+    Android: com.CodersWithoutBorders.ARMA
+    Standalone: unity.CodersWithoutBorders.ARMA
     Tizen: com.Company.ProductName
-    iOS: com.Company.ProductName
+    iOS: com.CodersWithoutBorders.ARMA
     tvOS: com.Company.ProductName
   buildNumber:
     iOS: 0
@@ -265,7 +265,15 @@ PlayerSettings:
   m_BuildTargetBatching: []
   m_BuildTargetGraphicsAPIs: []
   m_BuildTargetVRSettings: []
-  m_BuildTargetEnableVuforiaSettings: []
+  m_BuildTargetEnableVuforiaSettings:
+  - m_BuildTarget: Standalone
+    m_Enabled: 1
+  - m_BuildTarget: iOS
+    m_Enabled: 1
+  - m_BuildTarget: Android
+    m_Enabled: 1
+  - m_BuildTarget: Metro
+    m_Enabled: 1
   openGLRequireES31: 0
   openGLRequireES31AEP: 0
   m_TemplateCustomTags: {}
@@ -561,6 +569,7 @@ PlayerSettings:
   webGLCompressionFormat: 1
   scriptingDefineSymbols:
     1: CT_FB
+    4: CT_FB
   platformArchitecture: {}
   scriptingBackend:
     Metro: 1
