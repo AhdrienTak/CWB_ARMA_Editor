@@ -22,9 +22,12 @@ public class scr_SceneController : MonoBehaviour {
 		"`", "~", "|", "\\", "\"", "'"                            
 	}; 
 		
-	private readonly string BASE_URL = ""; /* FILL THIS IN */
-	private readonly string WEB_SERVER_USER = ""; /* FILL THIS IN */
-	private readonly string WEB_SERVER_PASS = ""; /* FILL THIS IN */
+	[SerializeField] // FILL THIS IN
+	private readonly string BASE_URL = "mergingspaces.net/";
+	[SerializeField] // FILL THIS IN
+	private readonly string WEB_SERVER_USER = "mergingspaces@rachelclarke.net";
+	[SerializeField] // FILL THIS IN
+	private readonly string WEB_SERVER_PASS = "Merging1";
 
 	[SerializeField]
 	private GameObject IT_target;
@@ -52,42 +55,52 @@ public class scr_SceneController : MonoBehaviour {
 		EDITING, TRANSLATE, ROTATE, LOCKED
 	}
 
-	private bool   lock_changingStates;
-	private bool   lock_authentication;
-	private bool   lock_refreshingLists;
-	private bool   lock_creatingDirectory;
-	private bool   lock_deletingDirectory;
-	private bool   lock_openingDirectory;
-	private bool[] lock_uploadingData;
-	private bool[] lock_downloadingData;
-	private bool   lock_savingEdits;
+	private bool         lock_changingStates;
+	private bool         lock_authentication;
+	private bool         lock_refreshingLists;
+	private bool         lock_creatingDirectory;
+	private bool         lock_deletingDirectory;
+	private bool         lock_lockingDirectory;
+	private bool         lock_openingDirectory;
+	private bool[]       lock_uploadingData;
+	private bool[]       lock_downloadingData;
+	private bool         lock_savingEdits;
 
-	private List<string> listings; // A list of all pertinent directories (Galleries or pieces)
-	private string folderType;     // "Gallery" or "Piece"
-	private string currentGallery; // The name of the gallery folder the user has selected
-	private string currentPiece;   // The name of the piece   folder the user has selected
+	private List<string> listings;       // A list of all pertinent directories (Galleries or pieces)
+	private string       folderType;     // "Gallery" or "Piece"
+	private string       currentGallery; // The name of the gallery folder the user has selected
+	private string       currentPiece;   // The name of the piece   folder the user has selected
+	private string       liveGallery;    // Keeps track of a gallery's public visibility
+	private string       livePiece;      // Keeps track of a piece's public visibility
 
-	private int indexCur;    // The current directory at the top of the scroll list
-	private int indexMax;    // The maximum amount of dsirectories to be visible on screen at once
+	private int          indexCur;    // The current directory at the top of the scroll list
+	private int          indexMax;    // The maximum amount of directories to be visible on screen at once
 
-	private bool showEditGUI; // Hides the Editing GUI to make viewing the model easier
+	private bool         showEditGUI; // Hides the Editing GUI to make viewing the model easier
 
-	private string uName; // User's name
-	private string uPass; // Password
-	private string uMess; // Various messages
-	private string fName; // File Name
+	private string       uName; // User's name
+	private string       uPass; // Password
+	private string       uMess; // Various messages
+	private string       fName; // File Name
 
-	private string debugMsg;
+	private string       debugMsg;
 
-	private string[] transforms;
-	private string   rawMesh;
-	private int[] dim_tex_x;
-	private int[] dim_tex_y;
-	private string[] texFormat;
-	private int[] mipMap;
+	private string       markerID;
+	private string[]     transforms;
+	private string       rawMesh;
+	private int[]        dim_tex_x;
+	private int[]        dim_tex_y;
+	private string[]     texFormat;
+	private int[]        mipMap;
 
 
 	void Awake () {
+		// Delete everything in the temp folder
+		DebugMessage("Deleting temporary files...");
+		foreach (string file in System.IO.Directory.GetFiles(Application.dataPath + "/Resources/Temp/")) { 
+			File.Delete (file);
+		}
+
 		// Notify the system that the user has entered the Login screen
 		currState = ProgState.LOGIN;
 		prevState = ProgState.LOGIN;
@@ -95,16 +108,17 @@ public class scr_SceneController : MonoBehaviour {
 		// Initialize the mouse state
 		mouseState = MouseState.EDITING;
 
-		// Initialize all of the locks to off
-		lock_changingStates = false;
-		lock_authentication = false;
-		lock_refreshingLists = false;
+		// Initialize all of the locks to "off"
+		lock_changingStates    = false;
+		lock_authentication    = false;
+		lock_refreshingLists   = false;
 		lock_creatingDirectory = false;
 		lock_deletingDirectory = false;
-		lock_openingDirectory = false;
-		lock_uploadingData = new bool[] {false, false, false, false, false};   // Obj, Transform, Texture, Marker
-		lock_downloadingData = new bool[] {false, false, false, false, false}; // Obj, Transform, Texture, Marker
-		lock_savingEdits = false;
+		lock_lockingDirectory  = false;
+		lock_openingDirectory  = false;
+		lock_uploadingData     = new bool[] {false, false, false, false, false}; // Obj, Transform, Texture, Marker
+		lock_downloadingData   = new bool[] {false, false, false, false, false}; // Obj, Transform, Texture, Marker
+		lock_savingEdits       = false;
 
 		// Initialize navigation integers
 		indexCur = 0;
@@ -138,6 +152,7 @@ public class scr_SceneController : MonoBehaviour {
 		dim_tex_y = new int[] {0, 0};
 		texFormat = new string[] {"", ""};
 		mipMap = new int[] {0, 0};
+		markerID = "";
 
 		// Make the models and marker invisible at the start
 		GO_model.GetComponent<MeshRenderer> ().enabled = false;
@@ -156,6 +171,7 @@ public class scr_SceneController : MonoBehaviour {
 			lock_creatingDirectory ||
 			lock_openingDirectory  ||
 			lock_deletingDirectory ||
+			lock_lockingDirectory  ||
 			lock_refreshingLists   ||
 			lock_uploadingData[0]  ||
 			lock_uploadingData[1]  ||
@@ -219,6 +235,7 @@ public class scr_SceneController : MonoBehaviour {
 			lock_creatingDirectory ||
 			lock_openingDirectory  ||
 			lock_deletingDirectory ||
+			lock_lockingDirectory  ||
 			lock_refreshingLists   ||
 			lock_uploadingData[0]  ||
 			lock_uploadingData[1]  ||
@@ -287,12 +304,26 @@ public class scr_SceneController : MonoBehaviour {
 					continue;
 				if (current >= indexMax)
 					break;
-				// Create the buttons for each Gallery
-				if (GUI.Button (new Rect (x0 - 240, 70 + (offset * 36), 256, 32), item)) {
-					StartCoroutine (OpenDirectory (item));
+				// Check if directory is live, and create the toggle button
+				string live = item.Substring(item.Length - 1);
+				string name = item.Substring(0, item.Length - 1);
+				if (live.Equals ("x")) {
+					GUI.backgroundColor = Color.red;
 				}
-				if (GUI.Button (new Rect (x0 + 30, 70 + (offset * 36), 128, 32), "Delete")) {
-					StartCoroutine (DeleteDirectory (item));
+				else {
+					GUI.backgroundColor = Color.green;
+				}
+				if (GUI.Button (new Rect (x0 - 240, 70 + (offset * 36), 92, 32), "Live")) {
+					StartCoroutine (LockDirectory (name, live));
+				}
+				GUI.backgroundColor = Color.gray;
+				// Create the buttons for each Gallery
+				if (GUI.Button (new Rect (x0 - 132, 70 + (offset * 36), 220, 32), name)) {
+					liveGallery = live;
+					StartCoroutine (OpenDirectory (name));
+				}
+				if (GUI.Button (new Rect (x0 + 104, 70 + (offset * 36), 92, 32), "Delete")) {
+					StartCoroutine (DeleteDirectory (name));
 				}
 				offset++;
 				current++;
@@ -325,12 +356,26 @@ public class scr_SceneController : MonoBehaviour {
 					continue;
 				if (current >= indexMax)
 					break;
-				// Create the buttons for each Piece
-				if (GUI.Button (new Rect (x0 - 240, 70 + (offset * 36), 256, 32), item)) {
-					StartCoroutine (OpenDirectory (item));
+				// Check if directory is live, and create the toggle button
+				string live = item.Substring(item.Length - 1);
+				string name = item.Substring(0, item.Length - 1);
+				if (live.Equals ("x")) {
+					GUI.backgroundColor = Color.red;
 				}
-				if (GUI.Button (new Rect (x0 + 30, 70 + (offset * 36), 128, 32), "Delete")) {
-					StartCoroutine (DeleteDirectory (item));
+				else {
+					GUI.backgroundColor = Color.green;
+				}
+				if (GUI.Button (new Rect (x0 - 240, 70 + (offset * 36), 92, 32), "Live")) {
+					StartCoroutine (LockDirectory (name, live));
+				}
+				GUI.backgroundColor = Color.gray;
+				// Create the buttons for each Gallery
+				if (GUI.Button (new Rect (x0 - 132, 70 + (offset * 36), 220, 32), name)) {
+					livePiece = live;
+					StartCoroutine (OpenDirectory (name));
+				}
+				if (GUI.Button (new Rect (x0 + 104, 70 + (offset * 36), 92, 32), "Delete")) {
+					StartCoroutine (DeleteDirectory (name));
 				}
 				offset++;
 				current++;
@@ -462,11 +507,6 @@ public class scr_SceneController : MonoBehaviour {
 					if (GUI.Button (new Rect ((Screen.width / 2) - 65, 10, 120, 32), "Save Changes")) {
 						// Save changes to Web Server
 						StartCoroutine (SaveEdits ());
-						// Upload image marker to Vuforia Cloud
-						DebugMessage("Uploading image target to Vuforia cloud...");
-						Texture2D imageTarget = (Texture2D) GO_marker.GetComponent<MeshRenderer> ().material.mainTexture;
-						string markerName = this.GetCurrentTargetName() + "_marker";
-						this.GetComponent<CloudUploading>().CallPostTarget (imageTarget, markerName, markerName);
 					}
 					// Preview
 					if (GUI.Button (new Rect (Screen.width - 130, 85, 120, 32), "Preview")) {
@@ -663,7 +703,7 @@ public class scr_SceneController : MonoBehaviour {
 		WWWForm form = new WWWForm();
 		form.AddField("name", fName);
 		form.AddField("type", folderType);
-		form.AddField ("author", uName);
+		form.AddField("author", uName);
 		form.AddField("gallery", currentGallery);
 		UnityWebRequest www = UnityWebRequest.Post("http://" + BASE_URL + "Galleries/createDirectory.php", form);
 		www.chunkedTransfer = false;
@@ -683,6 +723,41 @@ public class scr_SceneController : MonoBehaviour {
 		yield return StartCoroutine(RefreshListings());
 		end_CreateFile_B:
 		lock_creatingDirectory = false;
+	}
+
+	IEnumerator LockDirectory(string name, string lockState) {
+		lock_lockingDirectory = true;
+
+		WWWForm form = new WWWForm ();
+		form.AddField ("author", uName);
+		if (currState == ProgState.GALLERY) {
+			form.AddField ("type", "Gallery");
+			form.AddField ("gallery", name);
+		} else {
+			form.AddField ("type", "Piece");
+			form.AddField ("gallery", currentGallery);
+			form.AddField ("piece", name);
+		}
+		form.AddField ("lock", lockState);
+
+		UnityWebRequest www = UnityWebRequest.Post ("http://" + BASE_URL + "Galleries/lockDirectory.php", form);
+		www.chunkedTransfer = false;
+		yield return www.SendWebRequest();
+
+		// Handle Network Errors
+		if (www.isNetworkError || www.isHttpError) {
+			DebugMessage (www.error, "error");
+		} 
+
+		// Wait for deletion
+		else {
+			DebugMessage(www.downloadHandler.text);
+		}
+
+		www.Dispose ();
+		yield return StartCoroutine(RefreshListings());
+
+		lock_lockingDirectory = false;
 	}
 
 	IEnumerator OpenDirectory(string folderName) {
@@ -734,7 +809,15 @@ public class scr_SceneController : MonoBehaviour {
 
 			// Wait for deletion
 			else {
-				DebugMessage(www.downloadHandler.text);
+				DebugMessage("Deleting Vuforia markers.");
+
+				// Delete Vuforia cloud markers
+				string markerIDs = www.downloadHandler.text;
+				while (markerIDs.Length > 1) {
+					string nextID = markerIDs.Substring (0, markerIDs.IndexOf (","));
+					markerIDs = markerIDs.Substring (markerIDs.IndexOf(",") + 1);
+					yield return StartCoroutine (this.GetComponent<CloudUploading>().CallDeleteTarget (nextID));
+				}
 			}
 
 			www.Dispose ();
@@ -771,35 +854,40 @@ public class scr_SceneController : MonoBehaviour {
 		);
 			
 		// Save image file dimensions
-		StartCoroutine(
-			UploadFile(
-				"dimension", 
-				Encoding.UTF8.GetBytes (
-					dim_tex_x[0] + "," + 
-					dim_tex_y[0] + "," +
-					texFormat[0] + "," +
-					mipMap[0]    + "," +
-					dim_tex_x[1] + "," + 
-					dim_tex_y[1] + "," +
-					texFormat[1] + "," +
-					mipMap[1]    + "," +
-					" "
-				),
-				"dimension.txt"
-			)
-		);
+		string imageMetaData = dim_tex_x [0] + "," + // Width        of texture
+		                       dim_tex_y [0] + "," + // Height       of texture 
+		                       texFormat [0] + "," + // Format       of texture
+		                       mipMap    [0] + "," + // MipMap count of texture
+		                       dim_tex_x [1] + "," + // Width        of marker
+		                       dim_tex_y [1] + "," + // Height       of marker
+		                       texFormat [1] + "," + // Format       of marker
+		                       mipMap    [1] + "," + // MipMap count of marker
+		                       markerID      + "," + // Vuforia's ID of marker
+		                       " ";
+		
+		StartCoroutine(UploadFile("dimension", Encoding.UTF8.GetBytes (imageMetaData), "dimension.txt"));
+
+		// Upload image marker to Vuforia Cloud
+		DebugMessage("Uploading image target to Vuforia cloud...");
+		Texture2D imageTarget = (Texture2D) GO_marker.GetComponent<MeshRenderer> ().material.mainTexture;
+		string markerName = this.GetCurrentTargetName() + "_marker";
+		yield return StartCoroutine (this.GetComponent<CloudUploading>().CallPostTarget (imageTarget, markerName, imageMetaData));
 
 		// Save texture
-		StartCoroutine(UploadFile("texture", ((Texture2D)GO_model.GetComponent<MeshRenderer> ().material.mainTexture).GetRawTextureData(), "texture.png"));
+		StartCoroutine(UploadFile("texture", ((Texture2D) GO_model.GetComponent<MeshRenderer> ().material.mainTexture).GetRawTextureData(), "texture.png"));
 
 		// Save marker
-		StartCoroutine(UploadFile("marker", ((Texture2D)GO_marker.GetComponent<MeshRenderer> ().material.mainTexture).GetRawTextureData(), "marker.jpg"));
+		StartCoroutine(UploadFile("marker", ((Texture2D) GO_marker.GetComponent<MeshRenderer> ().material.mainTexture).GetRawTextureData(), "marker.jpeg"));
 
 		yield return null;
 		lock_savingEdits = false;
 	}
 
 	IEnumerator UploadFile(string messageType, byte[] contents, string fileName) {
+		string contentType = "";
+		bool convertImage = false;
+		string imageMime = "";
+
 		switch (messageType) {
 		case "model":
 			lock_uploadingData [0] = true;
@@ -812,22 +900,26 @@ public class scr_SceneController : MonoBehaviour {
 			break;
 		case "texture":
 			lock_uploadingData [3] = true;
+			convertImage = true;
+			imageMime = "png";
 			break;
 		case "marker":
 			lock_uploadingData [4] = true;
+			convertImage = true;
+			imageMime = "jpeg";
 			break;
 		default:
 			break;
 		}
 
-		DebugMessage("Uploading " + messageType + " data...");
-		string filePath = "Galleries/_" + uName + "_" + currentGallery + "/_" + currentPiece + "/" + fileName;
+		DebugMessage ("Uploading " + messageType + " data...");
+		string filePath = "Galleries/_" + uName + "_" + currentGallery + liveGallery + "/_" + currentPiece + livePiece + "/" + fileName;
 		FtpWebRequest wrq;
 		FtpWebResponse wrp;
 		Stream requestStream;
 
 		try {
-			wrq = (FtpWebRequest) WebRequest.Create ("ftp://" + BASE_URL + filePath);
+			wrq = (FtpWebRequest)WebRequest.Create ("ftp://" + BASE_URL + filePath);
 			wrq.Method = WebRequestMethods.Ftp.UploadFile;
 			wrq.Credentials = new NetworkCredential (WEB_SERVER_USER, WEB_SERVER_PASS);
 			wrq.ContentLength = contents.Length;
@@ -839,11 +931,37 @@ public class scr_SceneController : MonoBehaviour {
 			DebugMessage (wrp.StatusDescription);
 			wrp.Close ();
 			DebugMessage ("Uploading " + messageType + " data complete.");
-		}
-
-		catch (Exception e) {
+		} catch (Exception e) {
 			DebugMessage ("Uploading " + messageType + " data failed.", "error");
 		}
+
+		// If the target is an image, convert the byte array into a proper image file
+		/*FIXME Was not able to get this to work...
+		if (convertImage) {
+			DebugMessage ("Attempting to decode image on web server...");
+			WWWForm form = new WWWForm ();
+			form.AddField ("mime",    imageMime     );
+			form.AddField ("type",    messageType   );
+			form.AddField ("author",  uName         );
+			form.AddField ("gallery", currentGallery);
+			form.AddField ("piece",   currentPiece  );
+			UnityWebRequest www = UnityWebRequest.Post ("http://" + BASE_URL + "Galleries/decodeImage.php", form);
+			www.chunkedTransfer = false;
+			yield return www.SendWebRequest ();
+
+			// Handle Errors
+			if (www.isNetworkError) {
+				DebugMessage (www.error, "error");
+			} 
+
+			// Wait for deletion
+			else {
+				DebugMessage ("Decoded image. " + www.downloadHandler.text);
+			}
+
+			www.Dispose ();
+		}
+		*/
 
 		yield return null;
 		switch (messageType) {
@@ -889,7 +1007,7 @@ public class scr_SceneController : MonoBehaviour {
 		}
 
 		DebugMessage("Downloading " + messageType + " data...");
-		string filePath = "Galleries/_" + uName + "_" + currentGallery + "/_" + currentPiece + "/" + fileName;
+		string filePath = "Galleries/_" + uName + "_" + currentGallery + liveGallery + "/_" + currentPiece + livePiece + "/" + fileName;
 		WebClient request = new WebClient ();
 		request.Credentials = new NetworkCredential (WEB_SERVER_USER, WEB_SERVER_PASS);
 		byte[] contents;
@@ -903,7 +1021,11 @@ public class scr_SceneController : MonoBehaviour {
 			Texture2D tex; 
 			switch (fileName) {
 			case "model.obj":
+				// Create a temporary file
 				rawMesh = Encoding.UTF8.GetString(contents);
+				fp_object = Application.dataPath + "/Resources/Temp/model.obj";
+				System.IO.File.WriteAllText(fp_object, rawMesh);
+				// Apply the mesh to the model on screen
 				GO_model.GetComponent<MeshFilter>().mesh = (new ObjImporter()).ImportFileRaw(rawMesh);
 				break;
 			case "transform.txt":
@@ -922,15 +1044,19 @@ public class scr_SceneController : MonoBehaviour {
 				{
 					dim_tex_x[0] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
 					dim_tex_y[0] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
-					texFormat[0] = data.Substring(0, data.IndexOf(","));            data = data.Substring(data.IndexOf(",") + 1);
-					mipMap[0]    = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
+					texFormat[0] =           data.Substring(0, data.IndexOf(",")) ; data = data.Substring(data.IndexOf(",") + 1);
+					mipMap   [0] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
 				}
 				// Marker Texture
 				{
 					dim_tex_x[1] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
 					dim_tex_y[1] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
-					texFormat[1] = data.Substring(0, data.IndexOf(","));            data = data.Substring(data.IndexOf(",") + 1);
-					mipMap[1]    = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
+					texFormat[1] =           data.Substring(0, data.IndexOf(",")) ; data = data.Substring(data.IndexOf(",") + 1);
+					mipMap   [1] = int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
+				}
+				// Marker Vuforia ID
+				{
+					markerID     = data.Substring(0, data.IndexOf(","));            data = data.Substring(data.IndexOf(",") + 1);
 				}
 				break;
 			case "texture.png":
@@ -1162,7 +1288,15 @@ public class scr_SceneController : MonoBehaviour {
 		}
 	}
 
-	public String GetCurrentTargetName() {
+	public string GetCurrentTargetName() {
 		return "_" + uName + "_" + currentGallery + "_" + currentPiece;
+	}
+
+	public void setMarkerID (string id) {
+		markerID = id;
+	}
+
+	public string getMarkerID () {
+		return markerID;
 	}
 }
