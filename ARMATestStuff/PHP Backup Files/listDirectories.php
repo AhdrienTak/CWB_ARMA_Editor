@@ -10,7 +10,12 @@ if (isset($_POST['author']) && isset($_POST['type']) && isset($_POST['gallery'])
 	}
 	
 	else if (strcmp($_POST['type'], 'Piece') == 0) {
-		$directories = glob('_' . $_POST['author'] . '_' . $_POST['gallery'] . '/' . '*', GLOB_ONLYDIR);
+		if (is_dir('_' . $_POST['author'] . '_' . $_POST['gallery'] . 'x')) {
+			$directories = glob('_' . $_POST['author'] . '_' . $_POST['gallery'] . 'x/' . '*', GLOB_ONLYDIR);
+		}
+		else {
+			$directories = glob('_' . $_POST['author'] . '_' . $_POST['gallery'] . 'o/' . '*', GLOB_ONLYDIR);
+		}
 	}
 
 	else {
@@ -24,7 +29,7 @@ if (isset($_POST['author']) && isset($_POST['type']) && isset($_POST['gallery'])
 		}
 	
 		else if (strcmp($_POST['type'], 'Piece') == 0) {
-			$outputList .= substr($directory, (4 + strlen($_POST['author']) + strlen($_POST['gallery'])));
+			$outputList .= substr($directory, (5 + strlen($_POST['author']) + strlen($_POST['gallery'])));
 		}
 		
 		$outputList .= ",";
