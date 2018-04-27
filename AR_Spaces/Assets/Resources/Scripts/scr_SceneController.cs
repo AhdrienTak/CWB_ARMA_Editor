@@ -61,6 +61,10 @@ public class scr_SceneController : MonoBehaviour {
 		EDITING, TRANSLATE, ROTATE, LOCKED
 	}
 
+	private bool shader_bump;
+	private bool shader_spec;
+	private bool shader_tran;
+
 	private bool         lock_changingStates;
 	private bool         lock_authentication;
 	private bool         lock_refreshingLists;
@@ -432,7 +436,7 @@ public class scr_SceneController : MonoBehaviour {
 				// Show Editing buttons
 				if (mouseState == MouseState.EDITING) {
 					// Select a 3D model
-					if (GUI.Button (new Rect (10, 65, 128, 24), "Select model")) {
+					if (GUI.Button (new Rect (32, 65, 128, 24), "Select model")) {
 						string selectedFile = FileBrowser.OpenSingleFile ("Select .obj", fp_object, "obj");
 						if (!string.IsNullOrEmpty (selectedFile)) {
 							fp_object = selectedFile;
@@ -442,13 +446,13 @@ public class scr_SceneController : MonoBehaviour {
 						}
 					}
 					// Remove Model
-					if (GUI.Button (new Rect (150, 65, 58, 24), "Reset")) {
+					if (GUI.Button (new Rect (166, 65, 58, 24), "Reset")) {
 						string content = defaultModel.text;
 						GO_model.GetComponent<MeshFilter> ().mesh = (new ObjImporter ()).ImportFileRaw (content);
 						rawMesh = content;
 					}
 					// Select a Texture
-					if (GUI.Button (new Rect (10, 94, 128, 24), "Select texture")) {
+					if (GUI.Button (new Rect (32, 94, 128, 24), "Select texture")) {
 						string selectedFile = FileBrowser.OpenSingleFile ("Select texture", fp_texture, "jpg,jpeg,png");
 						if (!string.IsNullOrEmpty (selectedFile)) {
 							fp_texture = selectedFile;
@@ -465,7 +469,7 @@ public class scr_SceneController : MonoBehaviour {
 						}
 					}
 					// Remove Texture
-					if (GUI.Button (new Rect (150, 94, 58, 24), "Reset")) {
+					if (GUI.Button (new Rect (166, 94, 58, 24), "Reset")) {
 						Texture2D tex = new Texture2D (2, 2);
 						tex.Apply ();
 						GO_model.GetComponent<MeshRenderer> ().material.mainTexture = tex;
@@ -474,8 +478,14 @@ public class scr_SceneController : MonoBehaviour {
 						texFormat [0] = "";
 						mipMap [0] = 0;
 					}
+					// Toggle Normal
+					bool new_shader_bump = GUI.Toggle (new Rect(10, 123, 24, 24), shader_bump, "");
+					if (new_shader_bump != shader_bump) {
+						shader_bump = new_shader_bump;
+						setModelShader ();
+					}
 					// Select a Normal Map
-					if (GUI.Button (new Rect (10, 123, 128, 24), "Select normal map")) {
+					if (GUI.Button (new Rect (32, 123, 128, 24), "Select normal map")) {
 						string selectedFile = FileBrowser.OpenSingleFile ("Select normal map", fp_normal, "jpg,jpeg,png");
 						if (!string.IsNullOrEmpty (selectedFile)) {
 							fp_normal = selectedFile;
@@ -493,7 +503,7 @@ public class scr_SceneController : MonoBehaviour {
 						}
 					}
 					// Remove Normal
-					if (GUI.Button (new Rect (150, 123, 58, 24), "Reset")) {
+					if (GUI.Button (new Rect (166, 123, 58, 24), "Reset")) {
 						Texture2D tex = new Texture2D (2, 2);
 						tex.Apply ();
 						GO_model.GetComponent<MeshRenderer> ().material.SetTexture ("_BumpMap", tex);
@@ -502,11 +512,17 @@ public class scr_SceneController : MonoBehaviour {
 						texFormat [1] = "";
 						mipMap [1] = 0;
 					}
+					// Toggle specularity
+					bool new_shader_spec = GUI.Toggle (new Rect(10, 152, 24, 24), shader_spec, "");
+					if (new_shader_spec != shader_spec) {
+						shader_spec = new_shader_spec;
+						setModelShader ();
+					}
 					// Set specularity
-					GUI.Label (new Rect (10, 152, 80, 24), "Specularity:");
+					GUI.Label (new Rect (32, 152, 80, 24), "Specularity:");
 					oldSpecular = specularity;
 					try {
-						specularity = float.Parse(GUI.TextField (new Rect (88, 152, 88, 24), "" + oldSpecular, 24));
+						specularity = float.Parse(GUI.TextField (new Rect (110, 152, 88, 24), "" + oldSpecular, 24));
 						if (specularity < 0.1f) {
 							specularity = 0.1f;
 						}
@@ -517,8 +533,14 @@ public class scr_SceneController : MonoBehaviour {
 						specularity = oldSpecular;
 					}
 					GO_model.GetComponent<MeshRenderer> ().material.SetFloat ("_SHININESS", specularity);
+					// Toggle Transparency
+					bool new_shader_tran = GUI.Toggle (new Rect(10, 181, 128, 24), shader_tran, "  Transparency");
+					if (new_shader_tran != shader_tran) {
+						shader_tran = new_shader_tran;
+						setModelShader ();
+					}
 					// Select a image marker
-					if (GUI.Button (new Rect (10, 181, 128, 24), "Select marker")) {
+					if (GUI.Button (new Rect (32, 210, 128, 24), "Select marker")) {
 						string selectedFile = FileBrowser.OpenSingleFile ("Select marker", fp_marker, "jpg,jpeg,png");
 						if (!string.IsNullOrEmpty (selectedFile)) {
 							fp_marker = selectedFile;
@@ -536,7 +558,7 @@ public class scr_SceneController : MonoBehaviour {
 						}
 					}
 					// Remove Marker
-					if (GUI.Button (new Rect (150, 181, 58, 24), "Reset")) {
+					if (GUI.Button (new Rect (166, 210, 58, 24), "Reset")) {
 						Texture2D tex = new Texture2D (2, 2);
 						tex.Apply ();
 						GO_marker.GetComponent<MeshRenderer> ().material.mainTexture = tex;
@@ -558,22 +580,22 @@ public class scr_SceneController : MonoBehaviour {
 							txform_model [3], txform_model [4], txform_model [5], // New Rotations
 							txform_model [6], txform_model [7], txform_model [8]  // New Scalings
 						};
-						GUI.Label (new Rect (10, 220, 120, 20), "Model Transform:");
+						GUI.Label (new Rect (10, 249, 120, 20), "Model Transform:");
 						// Translate
-						GUI.Label (new Rect (10, 241, 16, 20), "T");
-						new_transforms [0] = GUI.TextField (new Rect (28, 241, 64, 20), old_transforms [0], 32);
-						new_transforms [1] = GUI.TextField (new Rect (98, 241, 64, 20), old_transforms [1], 32);
-						new_transforms [2] = GUI.TextField (new Rect (168, 241, 64, 20), old_transforms [2], 32);
+						GUI.Label (new Rect (10, 270, 16, 20), "T");
+						new_transforms [0] = GUI.TextField (new Rect (28, 270, 64, 20), old_transforms [0], 32);
+						new_transforms [1] = GUI.TextField (new Rect (98, 270, 64, 20), old_transforms [1], 32);
+						new_transforms [2] = GUI.TextField (new Rect (168, 270, 64, 20), old_transforms [2], 32);
 						// Rotate
-						GUI.Label (new Rect (10, 266, 16, 20), "R");
-						new_transforms [3] = GUI.TextField (new Rect (28, 266, 64, 20), old_transforms [3], 32);
-						new_transforms [4] = GUI.TextField (new Rect (98, 266, 64, 20), old_transforms [4], 32);
-						new_transforms [5] = GUI.TextField (new Rect (168, 266, 64, 20), old_transforms [5], 32);
+						GUI.Label (new Rect (10, 291, 16, 20), "R");
+						new_transforms [3] = GUI.TextField (new Rect (28, 291, 64, 20), old_transforms [3], 32);
+						new_transforms [4] = GUI.TextField (new Rect (98, 291, 64, 20), old_transforms [4], 32);
+						new_transforms [5] = GUI.TextField (new Rect (168, 291, 64, 20), old_transforms [5], 32);
 						// Scale
-						GUI.Label (new Rect (10, 290, 16, 20), "S");
-						new_transforms [6] = GUI.TextField (new Rect (28, 290, 64, 20), old_transforms [6], 32);
-						new_transforms [7] = GUI.TextField (new Rect (98, 290, 64, 20), old_transforms [7], 32);
-						new_transforms [8] = GUI.TextField (new Rect (168, 290, 64, 20), old_transforms [8], 32);
+						GUI.Label (new Rect (10, 312, 16, 20), "S");
+						new_transforms [6] = GUI.TextField (new Rect (28, 312, 64, 20), old_transforms [6], 32);
+						new_transforms [7] = GUI.TextField (new Rect (98, 312, 64, 20), old_transforms [7], 32);
+						new_transforms [8] = GUI.TextField (new Rect (168, 312, 64, 20), old_transforms [8], 32);
 						// Check to make sure the inputs are valid, and save them
 						try {
 							for (int i = 0; i < 9; i++) {
@@ -612,12 +634,12 @@ public class scr_SceneController : MonoBehaviour {
 						string[] new_transforms = new string[] {
 							txform_light [0], txform_light [1], txform_light [2], // New Rotations
 						};
-						GUI.Label (new Rect (10, 312, 200, 20), "Directional Light Rotation:");
+						GUI.Label (new Rect (10, 341, 200, 20), "Directional Light Rotation:");
 						// Rotate
-						GUI.Label (new Rect (10, 333, 16, 20), "R");
-						new_transforms [0] = GUI.TextField (new Rect (28, 333, 64, 20), old_transforms [0], 32);
-						new_transforms [1] = GUI.TextField (new Rect (98, 333, 64, 20), old_transforms [1], 32);
-						new_transforms [2] = GUI.TextField (new Rect (168, 333, 64, 20), old_transforms [2], 32);
+						GUI.Label (new Rect (10, 362, 16, 20), "R");
+						new_transforms [0] = GUI.TextField (new Rect (28, 362, 64, 20), old_transforms [0], 32);
+						new_transforms [1] = GUI.TextField (new Rect (98, 362, 64, 20), old_transforms [1], 32);
+						new_transforms [2] = GUI.TextField (new Rect (168, 362, 64, 20), old_transforms [2], 32);
 						// Check to make sure the inputs are valid, and save them
 						try {
 							for (int i = 0; i < 3; i++) {
@@ -648,17 +670,17 @@ public class scr_SceneController : MonoBehaviour {
 						}
 					}
 					// Save changes
-					if (GUI.Button (new Rect (Screen.width - 180, 10, 120, 32), "Save Changes")) {
+					if (GUI.Button (new Rect (Screen.width - 180, 110, 120, 32), "Save Changes")) {
 						// Save changes to Web Server
 						StartCoroutine (SaveEdits ());
 					}
 					// Upload Vuforia Marker
-					if (GUI.Button (new Rect (Screen.width - 180, 50, 170, 32), "Upload Vuforia Marker")) {
+					if (GUI.Button (new Rect (Screen.width - 180, 150, 170, 32), "Upload Vuforia Marker")) {
 						// Send the marker data to Vuforia
 						StartCoroutine (UploadVuforiaMarker ());
 					}
 					// Preview
-					if (GUI.Button (new Rect (Screen.width - 180, 95, 120, 32), "Preview")) {
+					if (GUI.Button (new Rect (Screen.width - 180, 190, 120, 32), "Preview")) {
 						mouseState = MouseState.LOCKED;
 						currState = ProgState.PREVIEW;
 						GO_marker.GetComponent<MeshRenderer> ().enabled = false;
@@ -678,17 +700,17 @@ public class scr_SceneController : MonoBehaviour {
 					mState = "Rotate";
 				else if (mouseState == MouseState.EDITING)
 					mState = "Editing";
-				GUI.Label (new Rect (10, 360, 200, 22), "Camera Mode: " + mState);
-				if (GUI.Button (new Rect (10, 383, 70, 24), "Editing")) {
+				GUI.Label (new Rect (Screen.width - 180, 10, 200, 22), "Camera Mode: " + mState);
+				if (GUI.Button (new Rect (Screen.width - 225, 30, 70, 24), "Editing")) {
 					mouseState = MouseState.EDITING;
 				}
-				if (GUI.Button (new Rect (90, 383, 70, 24), "Translate")) {
+				if (GUI.Button (new Rect (Screen.width - 150, 30, 70, 24), "Translate")) {
 					mouseState = MouseState.TRANSLATE;
 				}
-				if (GUI.Button (new Rect (170, 383, 70, 24), "Rotate")) {
+				if (GUI.Button (new Rect (Screen.width - 75, 30, 70, 24), "Rotate")) {
 					mouseState = MouseState.ROTATE;
 				}
-				if (GUI.Button (new Rect (10, 405, 230, 24), "Reset Camera")) {
+				if (GUI.Button (new Rect (Screen.width - 225, 55, 220, 24), "Reset Camera")) {
 					GO_camera.GetComponent<scr_CameraControl> ().ResetCamera ();
 				}
 			}
@@ -1045,21 +1067,25 @@ public class scr_SceneController : MonoBehaviour {
 
 		StartCoroutine (UploadFile ("transform", Encoding.UTF8.GetBytes (transformData), "transform.txt"));
 
+		// Get the shader number
+		int shadNum = GO_model.GetComponent<scr_MaterialSwap>().getMaterialNumber();
+
 		// Save image file dimensions in metadata.txt
 		string imageMetaData =
-			dim_tex_x [0] + "," + // (int)           Width        of texture
-			dim_tex_y [0] + "," + // (int)           Height       of texture 
-			texFormat [0] + "," + // (TextureFormat) Format       of texture
-			mipMap    [0] + "," + // (int)           MipMap count of texture
-			dim_tex_x [1] + "," + // (int)           Width        of normal map
-			dim_tex_y [1] + "," + // (int)           Height       of normal map
-			texFormat [1] + "," + // (TextureFormat) Format       of normal map
-			mipMap    [1] + "," + // (int)           MipMap count of normal map
-			dim_tex_x [2] + "," + // (int)           Width        of marker
-			dim_tex_y [2] + "," + // (int)           Height       of marker
-			texFormat [2] + "," + // (TextureFormat) Format       of marker
-			mipMap    [2] + "," + // (int)           MipMap count of marker
-			specularity   + "," ; // (float)         Specularity  of model
+			dim_tex_x [0] + "," + // (int)           Width         of texture
+			dim_tex_y [0] + "," + // (int)           Height        of texture 
+			texFormat [0] + "," + // (TextureFormat) Format        of texture
+			mipMap    [0] + "," + // (int)           MipMap count  of texture
+			dim_tex_x [1] + "," + // (int)           Width         of normal map
+			dim_tex_y [1] + "," + // (int)           Height        of normal map
+			texFormat [1] + "," + // (TextureFormat) Format        of normal map
+			mipMap    [1] + "," + // (int)           MipMap count  of normal map
+			dim_tex_x [2] + "," + // (int)           Width         of marker
+			dim_tex_y [2] + "," + // (int)           Height        of marker
+			texFormat [2] + "," + // (TextureFormat) Format        of marker
+			mipMap    [2] + "," + // (int)           MipMap count  of marker
+			specularity   + "," + // (float)         Specularity   of model
+			shadNum       + "," ; // (int)           Shader number of model
 		
 		StartCoroutine(UploadFile("metadata", Encoding.UTF8.GetBytes (imageMetaData), "metadata.txt"));
 
@@ -1274,6 +1300,19 @@ public class scr_SceneController : MonoBehaviour {
 				{
 					specularity  = float.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
 				}
+				// Shader Number
+				{
+					int matNum   =   int.Parse(data.Substring(0, data.IndexOf(","))); data = data.Substring(data.IndexOf(",") + 1);
+					{
+						shader_bump  = false;
+						shader_spec  = false;
+						shader_tran  = false;
+						if (matNum % 4  > 2) shader_spec  = true;
+						if (matNum % 2 == 1) shader_bump  = true;
+						if (matNum      > 3) shader_tran  = true;
+					}
+					setModelShader ();
+				}
 				break;
 			case "markerID.txt":
 				data = Encoding.UTF8.GetString(contents);
@@ -1463,6 +1502,11 @@ public class scr_SceneController : MonoBehaviour {
 		}
 
 		lock_changingStates = false;
+	}
+
+	private void setModelShader() {
+		GO_model.GetComponent<scr_MaterialSwap> ().setMaterial (shader_bump, shader_spec, shader_tran);
+		GO_model.GetComponent<MeshRenderer> ().material.shader = Shader.Find (GO_model.GetComponent<scr_MaterialSwap> ().getMaterialString());
 	}
 
 	public void DebugMessage(string message) {
