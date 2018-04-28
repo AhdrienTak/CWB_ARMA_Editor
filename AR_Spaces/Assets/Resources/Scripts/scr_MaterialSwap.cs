@@ -42,7 +42,7 @@ public class scr_MaterialSwap : MonoBehaviour {
 			s += "Bumped ";
 		} 
 
-		if (number % 4 > 2) {
+		if (number % 4 > 1) {
 			s += "Specular";
 		} else {
 			s += "Diffuse";

@@ -104,13 +104,13 @@ public class CloudUploading : MonoBehaviour {
 			markerID = markerID.Substring (12);
 			markerID = markerID.Substring (0, markerID.Length - 2);
 			// Save the target ID
-			GameObject.Find("MASTER_Controller").GetComponent<scr_SceneController>().setMarkerID(markerID);
+			GameObject.Find("MASTER_Controller").GetComponent<scr_SceneController>().SetMarkerID(markerID);
 		}
 
 	}
 
 	IEnumerator PutNewTarget(Texture2D tex, string targetName, string metadataStr) {
-		string requestPath = "/targets/" + GameObject.Find("MASTER_Controller").GetComponent<scr_SceneController>().getMarkerID();
+		string requestPath = "/targets/" + GameObject.Find("MASTER_Controller").GetComponent<scr_SceneController>().GetMarkerID();
 		string serviceURI = url + requestPath;
 		string httpAction = "PUT";
 		string contentType = "application/json";

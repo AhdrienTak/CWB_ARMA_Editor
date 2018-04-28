@@ -10,6 +10,8 @@ public class scr_CameraControl : MonoBehaviour {
 	private readonly float SPD_TRA = 10.0f;
 	private readonly float SPD_ROT = 80.0f;
 
+	[SerializeField] private GameObject MS_Control;
+
 	private float spdT;
 	private float spdR;
 
@@ -50,11 +52,15 @@ public class scr_CameraControl : MonoBehaviour {
 		default:
 			break;
 		}
+
+		MS_Control.GetComponent<scr_SceneController> ().UpdateCamera ();
 	}
 
 	public void Rotate(float x, float y) {
 		Vector3 rotateValue = new Vector3 (x * spdR * Time.deltaTime, -y * spdR * Time.deltaTime, 0);
 		this.transform.eulerAngles = this.transform.eulerAngles - rotateValue;
+
+		MS_Control.GetComponent<scr_SceneController> ().UpdateCamera ();
 	}
 
 	public void setTranslateSpeed(float spd) {
